@@ -1,12 +1,30 @@
+# Prompt status for yadm
+# Old versions of this plugin relied on `~/.yadm/.status` being maintained externally.
+# Modern yadm usage can derive the same info by querying yadm itself.
 _prompt_yadm_status () {
-    case $(cat ~/.yadm/.status) in
-        (1)
-            print -P '%B%F{magenta}There are local configuration changes. Yadm sync required.%f%b'
-            ;;
-        (2)
+    # Fast exits: if yadm isn't available, or we're not in a yadm-managed repo.
+    command -v yadm >/dev/null 2>&1 || return 0
+    yadm rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+
+    # Prefer deriving state from yadm rather than relying on ~/.yadm/.status.
+    # - If there are local changes: suggest sync.
+    # - If branch is ahead of upstream: suggest push.
+    #
+    # Keep this lightweight: use porcelain status and a cheap ahead/behind check.
+    local _porcelain _ahead
+    _porcelain="$(yadm status --porcelain 2>/dev/null)" || return 0
+    if [[ -n "${_porcelain}" ]]; then
+        print -P '%B%F{magenta}There are local configuration changes. Yadm sync required.%f%b'
+        return 0
+    fi
+
+    # Only check ahead/behind if upstream exists.
+    if yadm rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
+        _ahead="$(yadm rev-list --count @{u}..HEAD 2>/dev/null)"
+        if [[ "${_ahead}" != "0" ]]; then
             print -P '%B%F{magenta}Run yadm push.%f%b'
-            ;;
-    esac
+        fi
+    fi
 }
 
 autoload -Uz add-zsh-hook
