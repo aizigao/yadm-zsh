@@ -2,6 +2,9 @@
 # Old versions of this plugin relied on `~/.yadm/.status` being maintained externally.
 # Modern yadm usage can derive the same info by querying yadm itself.
 _prompt_yadm_status () {
+    # Only show when the current directory is exactly ~
+    [[ "${PWD}" == "${HOME}" ]] || return 0
+
     # Fast exits: if yadm isn't available, or we're not in a yadm-managed repo.
     command -v yadm >/dev/null 2>&1 || return 0
     yadm rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
