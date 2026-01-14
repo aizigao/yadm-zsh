@@ -1,32 +1,30 @@
-# Prompt status for yadm
-# Old versions of this plugin relied on `~/.yadm/.status` being maintained externally.
-# Modern yadm usage can derive the same info by querying yadm itself.
-_prompt_yadm_status () {
-    # Only show when the current directory is exactly ~
-    [[ "${PWD}" == "${HOME}" ]] || return 0
+# Prompt status for yadm (instant-prompt safe)
 
-    # Fast exits: if yadm isn't available, or we're not in a yadm-managed repo.
-    command -v yadm >/dev/null 2>&1 || return 0
-    yadm rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+_prompt_yadm_status() {
+    # 只在交互式 shell 且 HOME 目录下显示
+    [[ -o interactive ]] || return
+    [[ "$PWD" == "$HOME" ]] || return
 
-    # Prefer deriving state from yadm rather than relying on ~/.yadm/.status.
-    # - If there are local changes: suggest sync.
-    # - If branch is ahead of upstream: suggest push.
-    #
-    # Keep this lightweight: use porcelain status and a cheap ahead/behind check.
-    local _porcelain _ahead
-    _porcelain="$(yadm status --porcelain 2>/dev/null)" || return 0
-    if [[ -n "${_porcelain}" ]]; then
-        print -P '%B%F{magenta}There are local configuration changes. Yadm sync required.%f%b'
-        return 0
+    # instant prompt 预加载阶段直接跳过
+    #（这是关键，避免任何提前输出）
+    [[ -n "${P9K_INSTANT_PROMPT:-}" ]] && return
+
+    # yadm 可用 & 在 yadm 仓库中
+    command -v yadm >/dev/null 2>&1 || return
+    yadm rev-parse --is-inside-work-tree >/dev/null 2>&1 || return
+
+    # 本地改动检查（无输出命令）
+    if yadm status --porcelain 2>/dev/null | grep -q .; then
+        print -P '%B%F{magenta} [YADM hint] There are local configuration changes. Yadm sync required.%f%b'
+        return
     fi
 
-    # Only check ahead/behind if upstream exists.
+    # upstream 存在时，检查是否 ahead
     if yadm rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
-        _ahead="$(yadm rev-list --count @{u}..HEAD 2>/dev/null)"
-        if [[ "${_ahead}" != "0" ]]; then
-            print -P '%B%F{magenta}Run yadm push.%f%b'
-        fi
+        local ahead
+        ahead="$(yadm rev-list --count @{u}..HEAD 2>/dev/null)"
+        [[ "$ahead" != 0 ]] && \
+          print -P '%B%F{magenta} [YADM hint] Run yadm push.%f%b'
     fi
 }
 
