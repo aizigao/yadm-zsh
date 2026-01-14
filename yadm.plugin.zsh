@@ -1,13 +1,8 @@
 # Prompt status for yadm (instant-prompt safe)
 
 _prompt_yadm_status() {
-    # 只在交互式 shell 且 HOME 目录下显示
+    # 只在交互式 shell
     [[ -o interactive ]] || return
-    [[ "$PWD" == "$HOME" ]] || return
-
-    # instant prompt 预加载阶段直接跳过
-    #（这是关键，避免任何提前输出）
-    [[ -n "${P9K_INSTANT_PROMPT:-}" ]] && return
 
     # yadm 可用 & 在 yadm 仓库中
     command -v yadm >/dev/null 2>&1 || return
@@ -28,11 +23,12 @@ _prompt_yadm_status() {
     fi
 }
 
-autoload -Uz add-zsh-hook
-add-zsh-hook precmd _prompt_yadm_status
+# autoload -Uz add-zsh-hook
+# add-zsh-hook precmd _prompt_yadm_status
 
 # Aliases
 alias y=yadm
+alias ys=_prompt_yadm_status
 alias ya='yadm add'
 alias yaa='yadm add -u'
 alias yap='yadm apply'
